@@ -1,0 +1,20 @@
+name:                vis
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/githubuser/vis#readme
+license:             GPL-3
+license-file:        LICENSE
+author:              True Ghiassi
+maintainer:          true@ghiassitrio.co.uk
+copyright:           2017 True Ghiassi
+category:            Robot vision
+build-type:          Simple
+cabal-version:       >=1.10
+extra-source-files:  README.md
+
+executable vis
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5

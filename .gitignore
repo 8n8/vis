@@ -1,0 +1,8 @@
+*
+!src/*
+!.gitignore
+!*.hs
+!stack.yaml
+!vis.cabal
+!LICENSE
+!README.md
