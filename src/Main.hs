@@ -25,40 +25,24 @@
 -- and find the location of the small image in the large one,
 -- using a spiral search from the starting point.
 
+
 module Main where
 
-import qualified Codec.Picture.Repa as Cpr
-import qualified Codec.Picture.Saving as Cps
-import qualified Data.Array.Repa as Dar
-import qualified Data.ByteString.Lazy as Db
 import qualified Data.Either as De
-import qualified Data.Word as Dw
-import qualified Data.Array.Repa.IO.DevIL as Dev
+import Vision.Image
+import Vision.Image.Storage.DevIL (Autodetect (..), load, save, StorageError)
+import Vision.Primitive (ix2)
 
 main :: IO ()
-main = readImage >>= saveImage
+main = do 
+  pic <- load Autodetect "/w/git/vis/1.png"
+  let output = processImage pic
+  err <- save Autodetect "/w/git/vis/op.png" output
+  errorHandler err
 
-type EitherIm = Either String (Cpr.Img Cpr.RGB)
+errorHandler :: Maybe StorageError -> IO ()
+errorHandler (Just _) = 
+  putStrLn "Writing to file failed, I'm afraid."
+errorHandler Nothing = putStrLn "OK, it worked."
 
-readImage :: Dev.IL Dev.Image
-readImage = Dev.readImage "/w/git/vis/1.png"
-
-saveImage :: EitherIm -> IO ()
-saveImage = saveAsTiff . image2arr
-
-image2arr :: EitherIm -> Arr
-image2arr pic = De.either error Cpr.imgData pic
-
-saveAsTiff :: Arr -> IO ()
-saveAsTiff = 
-  write . Cps.imageToPng . Cpr.imgToImage . arr2Img . 
-    changeImage
-  where write = Db.writeFile "/w/git/vis/op"
-     
-arr2Img :: Arr -> Cpr.Img Cpr.RGB
-arr2Img arr = Cpr.Img {Cpr.imgData = arr}
-
-type Arr = Dar.Array Dar.D Dar.DIM3 Dw.Word8
-
-changeImage :: Arr -> Arr
-changeImage = id
+processImage = id
