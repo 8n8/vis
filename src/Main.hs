@@ -33,14 +33,15 @@ import qualified Data.Array.Repa as Dar
 import qualified Data.ByteString.Lazy as Db
 import qualified Data.Either as De
 import qualified Data.Word as Dw
+import qualified Data.Array.Repa.IO.DevIL as Dev
 
 main :: IO ()
 main = readImage >>= saveImage
 
 type EitherIm = Either String (Cpr.Img Cpr.RGB)
 
-readImage :: IO (EitherIm)
-readImage = Cpr.readImage "/w/git/vis/1.png"
+readImage :: Dev.IL Dev.Image
+readImage = Dev.readImage "/w/git/vis/1.png"
 
 saveImage :: EitherIm -> IO ()
 saveImage = saveAsTiff . image2arr
