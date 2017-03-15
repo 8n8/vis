@@ -20,4 +20,5 @@ executable vis
   build-depends:       base >= 4 && < 4.9 
                      , friday-devil >= 0.1 && < 0.2
                      , friday
+                     , vector
                        
