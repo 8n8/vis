@@ -20,29 +20,80 @@
 
 module Main where
 
--- import qualified Data.Vector as Dv
 import qualified Data.List as Dl
 import qualified Data.Vector.Storable as Dvs
 import qualified Data.Word as Dw
 import qualified Vision.Image as Vi
 import qualified Vision.Image.Storage.DevIL as V
--- import qualified Vision.Primitive.Shape as Vps
+import qualified Vision.Image.Transform as Vit
+import qualified Vision.Primitive as Vp
+import qualified Vision.Primitive.Shape as Vps
+
+-- It identifies similar points in two similar pictures.  It
+-- is the first step in a program for detecting obstacles
+-- in the way of a robot using the pictures from two or three
+-- cameras.  This program takes in the two similar pictures
+-- and outputs the same pictures with various similar points
+-- marked on them.
 
 main :: IO ()
-main = load >>= maybeSave >>= printError
+main = do
+  first <- load "/w/git/vis/1.tiff"
+  second <- load "/w/git/vis/2.tiff"
+load >>= maybeSave >>= printError
+
+-- It makes a small red dot on the image at the given 
+-- position.
+redDot :: Vi.RGB -> (Int,Int) -> Vi.RGB
+redDot pic point = 
+  Vi.Manifest { Vi.manifestSize = size
+              , Vi.manifestVector = newvector }
+  where 
+    points :: [(Int,Int)]
+    points = take 25 $ searchPath point 
+    toShape :: [Vps.DIM2]
+    toShape = [Vps.ix2 x y | (x,y) <- points]
+    linearIndices :: [Int]
+    linearIndices = 
+      [Vps.toLinearIndex size i | i <- toShape] 
+    imagevector :: Dvs.Vector Vi.RGBPixel
+    imagevector = Vi.manifestVector pic
+    replacements :: [(Int,Vi.RGBPixel)]
+    replacements = [(pos,redPix) | pos <- linearIndices]
+    size :: Vp.Size
+    size = Vi.manifestSize pic
+    newvector :: Dvs.Vector Vi.RGBPixel
+    newvector = imagevector Dvs.// replacements
+
+redPix :: Vi.RGBPixel
+redPix = Vi.RGBPixel { Vi.rgbRed = 255
+                     , Vi.rgbGreen = 0
+                     , Vi.rgbBlue = 0 }
+
+-- Given a picture and the coordinates of a point in the
+-- picture, it cuts out a square piece of the picture.
+detail :: Vi.RGB -> (Int,Int) -> Int -> Vi.RGB
+detail pic (x,y) size = Vit.crop rect pic 
+  where rect = Vp.Rect { Vp.rX = x
+                       , Vp.rY = y
+                       , Vp.rWidth = size
+                       , Vp.rHeight = size }  
 
 -- It searches for a small image in a big one given a 
 -- starting point.
 -- search :: Vi.RGB -> Vi.RGB -> (Int,Int) -> (Int,Int)
 -- search small big (x,y) = (x,y)  
 
+type Inty = (Int,(Int,Int))
+
 searchPath :: (Int,Int) -> [(Int,Int)]
 searchPath start = no_indices
   where 
     no_indices = [x | (_,x) <- with_indices]
     with_indices = Dl.unfoldr f (0,start)
-    f :: (Int,(Int,Int)) -> Maybe ((Int,(Int,Int)),(Int,(Int,Int)))
-    f (i,item) = Just ((i,item),(i+1, ((listOfMoves !! i) item)))
+    f :: Inty -> Maybe (Inty,Inty)
+    f (i,item) = 
+      Just ((i,item),(i+1, ((listOfMoves !! i) item)))
 
 -- It generates a sequence: [1,1,2,2,3,3,4,4,5,5...]
 mvDiffs :: [Int]
@@ -78,8 +129,11 @@ comparePixel one two = red*red + green*green + blue*blue
     f :: Dw.Word8 -> Int
     f = fromIntegral
 
-load :: IO (Either V.StorageError Vi.RGB)
-load = V.load V.Autodetect "/w/git/vis/pinkblack2x2.tiff"
+load :: FilePath -> IO (Either V.StorageError Vi.RGB)
+load filepath= V.load V.Autodetect filepath
+
+data TwoEithIm = ( Either V.StorageError Vi.RGB
+                 , Either V.StorageError Vi.RGB )
 
 maybeSave :: Either V.StorageError Vi.RGB 
           -> IO (Maybe V.StorageError)
@@ -93,5 +147,5 @@ printError Nothing = putStrLn "All done."
 save :: Vi.RGB -> IO (Maybe V.StorageError)
 save = V.save V.Autodetect "/w/git/vis/opp.png" 
 
-processImage :: Vi.RGB -> Vi.RGB
-processImage = id 
+processTwoImages :: Vi.RGB -> Vi.RGB -> (Vi.RGB,
+processImages = id 
