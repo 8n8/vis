@@ -37,10 +37,11 @@ import qualified Vision.Primitive.Shape as Vps
 -- marked on them.
 
 main :: IO ()
-main = do
-  first <- load "/w/git/vis/1.tiff"
-  second <- load "/w/git/vis/2.tiff"
-load >>= maybeSave >>= printError
+main = (load froms) >>= (maybeSave tos) >>= printError
+  where 
+    froms = ["/w/git/vis/1.tiff", "/w/git/vis/2.tiff"]
+    tos = ["/w/git/vis/1out.tiff", "/w/git/vis/2out.tiff"]
+  
 
 -- It makes a small red dot on the image at the given 
 -- position.
@@ -129,23 +130,34 @@ comparePixel one two = red*red + green*green + blue*blue
     f :: Dw.Word8 -> Int
     f = fromIntegral
 
-load :: FilePath -> IO (Either V.StorageError Vi.RGB)
-load filepath= V.load V.Autodetect filepath
+load :: [FilePath] -> IO [Either V.StorageError Vi.RGB]
+load filepaths = 
+  sequence [V.load V.Autodetect f | f <- filepaths]
 
-data TwoEithIm = ( Either V.StorageError Vi.RGB
-                 , Either V.StorageError Vi.RGB )
+maybeSave :: [FilePath]
+          -> [Either V.StorageError Vi.RGB]
+          -> IO [Maybe V.StorageError]
+maybeSave filepaths images = 
+  either (\x -> return $ [Just x]) 
+    ((save filepaths) . processImages) (sequence images)
 
-maybeSave :: Either V.StorageError Vi.RGB 
-          -> IO (Maybe V.StorageError)
-maybeSave (Left err) = return (Just err)
-maybeSave (Right array) = save . processImage $ array
+printError :: [Maybe V.StorageError] -> IO()
+printError errs = printResults $ sequence errs  
 
-printError :: Maybe V.StorageError -> IO () 
-printError (Just err) = putStrLn $ "Error: " ++ show err
-printError Nothing = putStrLn "All done."
+printResults :: Maybe [V.StorageError] -> IO()
+printResults Nothing = putStrLn "Success!"
+printResults (Just errs) = 
+  head [putStrLn (show err) | err <- errs]
 
-save :: Vi.RGB -> IO (Maybe V.StorageError)
-save = V.save V.Autodetect "/w/git/vis/opp.png" 
+-- printError (Just err) = putStrLn $ "Error: " ++ show err
+-- printError Nothing = putStrLn "All done."
 
-processTwoImages :: Vi.RGB -> Vi.RGB -> (Vi.RGB,
+save :: [FilePath] 
+     -> [Vi.RGB] 
+     -> IO [Maybe V.StorageError]
+save filepaths images = 
+  sequence [V.save V.Autodetect f i | 
+            (f,i) <- zip filepaths images ]
+
+processImages :: [Vi.RGB] -> [Vi.RGB]
 processImages = id 
