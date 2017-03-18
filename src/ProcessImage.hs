@@ -20,6 +20,7 @@
 
 module ProcessImage ( processImages ) where
 
+import qualified Data.Int as I 
 import qualified Data.List as Dl
 import qualified Data.Vector.Storable as Dvs
 import qualified Data.Word as Dw
@@ -98,22 +99,26 @@ listOfMoves step =
 
 -- It compares two equally-sized images and works out the
 -- least-squared difference between them.
-compareImages :: Vi.RGB -> Vi.RGB -> Int
+compareImages :: Vi.RGB -> Vi.RGB -> I.Int64
 compareImages one two = 
-  Dvs.sum (Dvs.zipWith comparePixel first second)
+  if (Vi.manifestSize one) == (Vi.manifestSize two)
+  then bigsum (Dvs.zipWith comparePixel first second)
+  else error "Image segments are different sizes."
   where
+    bigsum :: Dvs.Vector I.Int64 -> I.Int64
+    bigsum = Dvs.sum 
     first = Vi.manifestVector one
     second = Vi.manifestVector two
 
 -- It calculates the least-squared difference between two
 -- RGB pixels.
-comparePixel :: Vi.RGBPixel -> Vi.RGBPixel -> Int
+comparePixel :: Vi.RGBPixel -> Vi.RGBPixel -> I.Int64
 comparePixel one two = red*red + green*green + blue*blue
   where
     red = (f $ Vi.rgbRed one) - (f $ Vi.rgbRed two)
     green = (f $ Vi.rgbGreen one) - (f $ Vi.rgbGreen two)
     blue = (f $ Vi.rgbBlue one) - (f $ Vi.rgbBlue two)
-    f :: Dw.Word8 -> Int
+    f :: Dw.Word8 -> I.Int64
     f = fromIntegral
 
 data ProcessErr = FailedToFindAnyMatches deriving Show
@@ -125,7 +130,7 @@ processImages [one,two] = handleErr newplace
     squaresize = 100
     newplace = search two (detail one place squaresize) 
       place squaresize
-    handleErr :: Maybe ((Int,Int),Int)
+    handleErr :: Maybe ((Int,Int),I.Int64)
               -> Either ProcessErr [Vi.RGB]
     handleErr (Just (pos, _)) =
       Right [ redDot one place squaresize
@@ -139,15 +144,15 @@ search :: Vi.RGB
        -> Vi.RGB 
        -> (Int,Int) 
        -> Int
-       -> Maybe ((Int,Int),Int)
+       -> Maybe ((Int,Int),I.Int64)
 search big small start squaresize = 
-  Dl.find identify (take 5000 diffs)
+  Dl.find identify (take 1 diffs)
   where
-    identify :: ((Int,Int),Int) -> Bool
-    identify (_,diff) = diff < threshold
-    threshold = 40000000
+    identify :: ((Int,Int),I.Int64) -> Bool
+    identify (_,diff) = True -- diff < threshold
+    threshold = 38000000
     -- for square side 50
     -- threshold = 16521950
-    diffs :: [((Int,Int),Int)]
+    diffs :: [((Int,Int),I.Int64)]
     diffs = [(p, compareImages small (detail big p squaresize)) |
              p <- searchPath start 2]
