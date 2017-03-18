@@ -32,32 +32,37 @@ import qualified ProcessImage as P
 -- marked on them.
 
 main :: IO ()
-main = (load froms) >>= (maybeSave tos) >>= printError
+main = do
+  raw <- load froms
+  let eitherRaw = sequence raw
+  case eitherRaw of
+    Left err -> do
+      putStrLn "There was a problem loading the images."
+      print err
+    Right images -> do
+      let eitherProcessed = P.processImages images
+      case eitherProcessed of
+        Left err -> do
+          putStrLn "There was a problem processing \
+                    \the images"
+          print err
+        Right processed -> do
+          saved <- save tos processed
+          let seqSaved = sequence saved
+          case seqSaved of
+            Just errs -> printErrors errs
+            Nothing -> putStrLn "Completed successfully."
   where 
     froms = ["/w/git/vis/1.tiff", "/w/git/vis/2.tiff"]
     tos = ["/w/git/vis/1out.tiff", "/w/git/vis/2out.tiff"]
-  
+
 load :: [FilePath] -> IO [Either V.StorageError Vi.RGB]
 load filepaths = 
   sequence [V.load V.Autodetect f | f <- filepaths]
 
-maybeSave :: [FilePath]
-          -> [Either V.StorageError Vi.RGB]
-          -> IO [Maybe V.StorageError]
-maybeSave filepaths images = 
-  either (\x -> return $ [Just x]) 
-    ((save filepaths) . P.processImages) (sequence images)
-
-printError :: [Maybe V.StorageError] -> IO()
-printError errs = printResults $ sequence errs  
-
-printResults :: Maybe [V.StorageError] -> IO()
-printResults Nothing = putStrLn "Success!"
-printResults (Just errs) = 
+printErrors :: [V.StorageError] -> IO()
+printErrors errs = 
   head [putStrLn (show err) | err <- errs]
-
--- printError (Just err) = putStrLn $ "Error: " ++ show err
--- printError Nothing = putStrLn "All done."
 
 save :: [FilePath] 
      -> [Vi.RGB] 
@@ -65,4 +70,3 @@ save :: [FilePath]
 save filepaths images = 
   sequence [V.save V.Autodetect f i | 
             (f,i) <- zip filepaths images ]
-

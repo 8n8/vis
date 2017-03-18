@@ -30,13 +30,14 @@ import qualified Vision.Primitive.Shape as Vps
 
 -- It makes a small red dot on the image at the given 
 -- position.
-redDot :: Vi.RGB -> (Int,Int) -> Vi.RGB
-redDot pic point = 
+redDot :: Vi.RGB -> (Int,Int) -> Int -> Vi.RGB
+redDot pic point squaresize = 
   Vi.Manifest { Vi.manifestSize = size
               , Vi.manifestVector = newvector }
   where 
     points :: [(Int,Int)]
-    points = take 25 $ searchPath point 
+    points = take (squaresize*squaresize) $ 
+      searchPath point 1
     toShape :: [Vps.DIM2]
     toShape = [Vps.ix2 x y | (x,y) <- points]
     linearIndices :: [Int]
@@ -72,28 +73,28 @@ detail pic (x,y) size = Vit.crop rect pic
 
 type Inty = (Int,(Int,Int))
 
-searchPath :: (Int,Int) -> [(Int,Int)]
-searchPath start = no_indices
+searchPath :: (Int,Int) -> Int -> [(Int,Int)]
+searchPath start step = no_indices
   where 
     no_indices = [x | (_,x) <- with_indices]
     with_indices = Dl.unfoldr f (0,start)
     f :: Inty -> Maybe (Inty,Inty)
     f (i,item) = 
-      Just ((i,item),(i+1, ((listOfMoves !! i) item)))
+      Just ((i,item),(i+1, (((listOfMoves step) !! i) item)))
 
 -- It generates a sequence: [1,1,2,2,3,3,4,4,5,5...]
 mvDiffs :: [Int]
 mvDiffs = Dl.concatMap (replicate 2) [1..]
 
-listOfMoves :: [(Int,Int) -> (Int,Int)]
-listOfMoves = 
+listOfMoves :: Int -> [(Int,Int) -> (Int,Int)]
+listOfMoves step = 
   Dl.concat [take x (repeat m) | (x,m) <- zip mvDiffs mvs]
   where 
     mvs = Dl.cycle [right,up,left,down]
-    right (x,y) = (x+1,y)
-    up (x,y) = (x,y+1)
-    left (x,y) = (x-1,y)
-    down (x,y) = (x,y-1)
+    right (x,y) = (x+step,y)
+    up (x,y) = (x,y+step)
+    left (x,y) = (x-step,y)
+    down (x,y) = (x,y-step)
 
 -- It compares two equally-sized images and works out the
 -- least-squared difference between them.
@@ -109,29 +110,44 @@ compareImages one two =
 comparePixel :: Vi.RGBPixel -> Vi.RGBPixel -> Int
 comparePixel one two = red*red + green*green + blue*blue
   where
-    red = f $ (Vi.rgbRed one) - (Vi.rgbRed two)
-    green = f $ (Vi.rgbGreen one) - (Vi.rgbGreen two)
-    blue = f $ (Vi.rgbBlue one) - (Vi.rgbBlue two)
+    red = (f $ Vi.rgbRed one) - (f $ Vi.rgbRed two)
+    green = (f $ Vi.rgbGreen one) - (f $ Vi.rgbGreen two)
+    blue = (f $ Vi.rgbBlue one) - (f $ Vi.rgbBlue two)
     f :: Dw.Word8 -> Int
     f = fromIntegral
 
-processImages :: [Vi.RGB] -> Maybe [Vi.RGB]
-processImages [one,two] = 
-  [redDot one (200,200), redDot two newplace]
+data ProcessErr = FailedToFindAnyMatches deriving Show
+
+processImages :: [Vi.RGB] -> Either ProcessErr [Vi.RGB]
+processImages [one,two] = handleErr newplace
   where
-    newplace = (20,20)
+    place = (500,500)
+    squaresize = 100
+    newplace = search two (detail one place squaresize) 
+      place squaresize
+    handleErr :: Maybe ((Int,Int),Int)
+              -> Either ProcessErr [Vi.RGB]
+    handleErr (Just (pos, _)) =
+      Right [ redDot one place squaresize
+            , redDot two pos squaresize ]
+    handleErr Nothing = Left FailedToFindAnyMatches
+
 processImages _ = 
   error "You can only have two input images."
 
 search :: Vi.RGB 
        -> Vi.RGB 
        -> (Int,Int) 
+       -> Int
        -> Maybe ((Int,Int),Int)
-search big small start = Dl.find identify (take 100 diffs)
+search big small start squaresize = 
+  Dl.find identify (take 5000 diffs)
   where
     identify :: ((Int,Int),Int) -> Bool
-    identify (point,diff) = diff < threshold
-    threshold = 100
+    identify (_,diff) = diff < threshold
+    threshold = 40000000
+    -- for square side 50
+    -- threshold = 16521950
     diffs :: [((Int,Int),Int)]
-    diffs = [(p, compareImages small (detail big p 5)) |
-             p <- searchPath start]
+    diffs = [(p, compareImages small (detail big p squaresize)) |
+             p <- searchPath start 2]
