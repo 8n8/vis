@@ -22,6 +22,7 @@ module ProcessImage ( processImages ) where
 
 import qualified Data.Int as I 
 import qualified Data.List as Dl
+import qualified Data.Ord as O
 import qualified Data.Vector.Storable as Dvs
 import qualified Data.Word as Dw
 import qualified Vision.Image as Vi
@@ -124,18 +125,14 @@ comparePixel one two = red*red + green*green + blue*blue
 data ProcessErr = FailedToFindAnyMatches deriving Show
 
 processImages :: [Vi.RGB] -> Either ProcessErr [Vi.RGB]
-processImages [one,two] = handleErr newplace
+processImages [one,two] = 
+  Right [ redDot one place squaresize
+        , redDot two newplace squaresize ]
   where
     place = (500,500)
     squaresize = 100
-    newplace = search two (detail one place squaresize) 
+    newplace = fst $ search two (detail one place squaresize) 
       place squaresize
-    handleErr :: Maybe ((Int,Int),I.Int64)
-              -> Either ProcessErr [Vi.RGB]
-    handleErr (Just (pos, _)) =
-      Right [ redDot one place squaresize
-            , redDot two pos squaresize ]
-    handleErr Nothing = Left FailedToFindAnyMatches
 
 processImages _ = 
   error "You can only have two input images."
@@ -144,15 +141,12 @@ search :: Vi.RGB
        -> Vi.RGB 
        -> (Int,Int) 
        -> Int
-       -> Maybe ((Int,Int),I.Int64)
+       -> ((Int,Int),I.Int64)
 search big small start squaresize = 
-  Dl.find identify (take 1 diffs)
+  Dl.minimumBy (O.comparing snd) (take 10000 diffs)
   where
-    identify :: ((Int,Int),I.Int64) -> Bool
-    identify (_,diff) = True -- diff < threshold
-    threshold = 38000000
     -- for square side 50
     -- threshold = 16521950
     diffs :: [((Int,Int),I.Int64)]
     diffs = [(p, compareImages small (detail big p squaresize)) |
-             p <- searchPath start 2]
+             p <- searchPath start 1]
