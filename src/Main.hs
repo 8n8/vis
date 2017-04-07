@@ -53,7 +53,7 @@ main = do
             Just errs -> printErrors errs
             Nothing -> putStrLn "Completed successfully."
   where 
-    froms = ["/w/git/vis/1.tiff", "/w/git/vis/2.tiff"]
+    froms = ["/w/git/vis/view1.JPG", "/w/git/vis/view2.JPG"]
     tos = ["/w/git/vis/1out.tiff", "/w/git/vis/2out.tiff"]
 
 load :: [FilePath] -> IO [Either V.StorageError Vi.RGB]

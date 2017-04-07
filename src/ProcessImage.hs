@@ -102,9 +102,7 @@ listOfMoves step =
 -- least-squared difference between them.
 compareImages :: Vi.RGB -> Vi.RGB -> I.Int64
 compareImages one two = 
-  if (Vi.manifestSize one) == (Vi.manifestSize two)
-  then bigsum (Dvs.zipWith comparePixel first second)
-  else error "Image segments are different sizes."
+  bigsum (Dvs.zipWith comparePixel first second)
   where
     bigsum :: Dvs.Vector I.Int64 -> I.Int64
     bigsum = Dvs.sum 
@@ -129,7 +127,7 @@ processImages [one,two] =
   Right [ redDot one place squaresize
         , redDot two newplace squaresize ]
   where
-    place = (500,500)
+    place = (1500,1500)
     squaresize = 100
     newplace = fst $ search two (detail one place squaresize) 
       place squaresize
@@ -149,4 +147,4 @@ search big small start squaresize =
     -- threshold = 16521950
     diffs :: [((Int,Int),I.Int64)]
     diffs = [(p, compareImages small (detail big p squaresize)) |
-             p <- searchPath start 1]
+             p <- searchPath start 2]
